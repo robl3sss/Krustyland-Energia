@@ -1,0 +1,14 @@
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {VEHICLE_BOXES} from '../dist/clearance.js';
+const source=await fs.readFile(new URL('../dist/app.js',import.meta.url),'utf8');
+const helpers=source.slice(source.indexOf('function material('),source.indexOf('function textSprite('));
+const cartFunction=source.slice(source.indexOf('function makeCart('),source.indexOf('async function loadPassenger'));
+const scene=new THREE.Scene(),context={THREE,scene,up:new THREE.Vector3(0,1,0),textSprite:()=>new THREE.Group()};
+vm.runInNewContext(helpers+'\n'+cartFunction+'\ncart=makeCart();',context);
+const c=context.cart;c.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(c);let vertices=0;
+c.traverse(o=>{if(!o.isMesh)return;const p=o.geometry.attributes.position;for(let i=0;i<p.count;i++){assert.ok(Number.isFinite(p.getX(i))&&Number.isFinite(p.getY(i))&&Number.isFinite(p.getZ(i)));const point=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(o.matrixWorld);assert.ok(VEHICLE_BOXES.some(b=>point.toArray().every((v,k)=>Math.abs(v-b.center[k])<=b.half[k]+.015)),o.name||'Cart part outside vehicle envelope');vertices++;}});
+assert.ok(b.min.x>=-1.38&&b.max.x<=1.38);assert.ok(b.min.y>=-.48&&b.max.y<=2.78);assert.ok(b.min.z>=-2.05&&b.max.z<=2.05);assert.ok(vertices>1000);assert.ok(c.userData.booster);assert.equal(c.userData.wheels.length,16);
+console.log('Cart: finite beveled cockpit, seat, restraints, lights and guide wheels; physical geometry fits the checked clearance envelope.');

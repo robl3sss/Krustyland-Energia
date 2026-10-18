@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+import {buildTrack,Simulator} from '../dist/physics.js';
+const source=await fs.readFile(new URL('../dist/app.js',import.meta.url),'utf8');
+const start=source.indexOf('function exportResults(){'),end=source.indexOf("$('export').onclick",start);
+const track=buildTrack(),sim=new Simulator(track,{mass:155,mu:.012});while(!sim.stopped)sim.advance(.05);
+let payload,file;vm.runInNewContext(source.slice(start,end)+'\nexportResults();',{track,sim,chosen:{name:'Homero'},Blob,download:(b,n)=>{payload=b;file=n;},toast(){}});
+const csv=await payload.text(),rows=csv.trim().replace(/^\ufeff/,'').split('\n').map(x=>x.split(',')),head=rows[1];
+assert.equal(file,'Krustyland_Homero_155kg_mu0.012.csv');assert.ok(rows.length>200);assert.ok(rows.slice(2).every(r=>r.length===head.length));
+const last=Object.fromEntries(head.map((key,i)=>[key,rows.at(-1)[i]]));
+assert.equal(+last.v_m_s,0);assert.equal(last.tramo,'Llegada');assert.ok(Math.abs(+last.Q_J-(+last.Q_rozamiento_J + +last.Q_frenos_J))<1e-6);
+assert.ok(!csv.includes('NaN')&&!csv.includes('undefined'));console.log('CSV passed: complete sample series, column alignment, final stop, friction/brake heat and filename.');
