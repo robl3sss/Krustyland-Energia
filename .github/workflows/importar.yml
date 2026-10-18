@@ -1,0 +1,19 @@
+name: Importar proyecto completo
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extraer la versión final
+        run: |
+          unzip -o Krustyland-Energia-GitHub.zip
+          rm Krustyland-Energia-GitHub.zip
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Publicar código, modelos y video del simulador'
+          git push
